@@ -1,0 +1,34 @@
+{
+  "tokens": {
+    "colors": {
+      "background": "#20242B",
+      "surface": "#2B3039",
+      "foreground": "#F4F6FA",
+      "muted": "#BEC7D5",
+      "accent": "#88B9FF"
+    },
+    "font": "Segoe UI",
+    "spacing": [
+      8,
+      16,
+      24
+    ]
+  },
+  "platform": "windows",
+  "mode": "operate",
+  "layout": {
+    "window": [
+      660,
+      1000
+    ],
+    "minimum": [
+      660,
+      960
+    ],
+    "tabs": [
+      "Цвет",
+      "Музыка"
+    ],
+    "waveform_height": 100
+  }
+}
