@@ -1,11 +1,11 @@
 {
   "tokens": {
     "colors": {
-      "background": "#20242B",
-      "surface": "#2B3039",
+      "background": "#1D2029",
+      "surface": "#333541",
       "foreground": "#F4F6FA",
-      "muted": "#BEC7D5",
-      "accent": "#88B9FF"
+      "muted": "#BFC3D3",
+      "accent": "#FFD7C1"
     },
     "font": "Segoe UI",
     "spacing": [
@@ -18,17 +18,22 @@
   "mode": "operate",
   "layout": {
     "window": [
-      660,
-      1000
+      1040,
+      800
     ],
     "minimum": [
-      660,
-      960
+      960,
+      760
     ],
     "tabs": [
       "Цвет",
       "Музыка"
     ],
-    "waveform_height": 100
-  }
+    "waveform_height": 100,
+    "columns": [
+      350,
+      "flex"
+    ]
+  },
+  "picker": "custom HSV with HEX/RGB"
 }

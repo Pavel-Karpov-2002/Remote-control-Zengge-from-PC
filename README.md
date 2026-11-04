@@ -2,9 +2,11 @@
 
 Управление LEDnetWF через Bluetooth LE: несколько ламп, RGB-палитра, яркость и цветомузыка от системного звука или выбранного приложения.
 
-**[Скачать последнюю версию для Windows x64](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases/latest/download/ZenggeMusic.exe)**
+**[Скачать опубликованную версию для Windows x64](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases/latest/download/ZenggeMusic.exe)**
 
-Установка Python не нужна. Запустите `ZenggeMusic.exe` из [Releases](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases).
+Новая локальная сборка Color Remote: `dist/ColorRemote/ZenggeColorRemote.exe`. Она включает современную HSV-палитру и крупную активную вкладку.
+
+Установка Python не нужна. В ранее опубликованном релизе файл называется `ZenggeMusic.exe`: [Releases](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases).
 
 ## Подключение ламп
 
@@ -52,7 +54,7 @@ py -3.12 -m venv .venv
 .\build.ps1
 ```
 
-Результат сборки: `dist/ZenggeMusic.exe`. Исполняемые файлы публикуются в Releases, а не в истории Git.
+Результат сборки: `dist/ColorRemote/ZenggeColorRemote.exe`. Исполняемые файлы публикуются в Releases, а не в истории Git.
 
 `check_loopback.py` — дополнительная интеграционная проверка изоляции двух процессов; она воспроизводит короткий тихий тестовый тон. Обычные unit-тесты ничего не воспроизводят и не требуют лампы.
 
@@ -63,3 +65,6 @@ py -3.12 -m venv .venv
 Протокол основан на [8none1/zengge_lednetwf](https://github.com/8none1/zengge_lednetwf), коммит `f4d20fc3225e4b8b5637b5951fff59d91882a53c`. UUID сервиса FFFF, запись FF01, уведомления FF02. RGB преобразуется в документированный HSV-пакет 3B A1 с точностью контроллера. Транспорт — Bleak/WinRT; Linux и Home Assistant не нужны.
 
 Автор исходного проекта перенёс дальнейшие исследования в [lednetwf_ble](https://github.com/8none1/lednetwf_ble). У моделей и прошивок команды могут отличаться. Адресное управление группами LED и встроенные эффекты в этой версии не реализованы.
+
+## Color Remote
+Актуальная сборка после редизайна: `D:\AI\zengge\dist\ColorRemote\ZenggeColorRemote.exe`. Заголовок окна: «Zengge • Color Remote». Все функции версии с несколькими лампами и музыкой сохранены.
