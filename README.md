@@ -2,11 +2,11 @@
 
 Управление LEDnetWF через Bluetooth LE: несколько ламп, RGB-палитра, яркость и цветомузыка от системного звука или выбранного приложения.
 
-**[Скачать опубликованную версию для Windows x64](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases/latest/download/ZenggeMusic.exe)**
+**[Скачать последнюю версию для Windows x64](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases/latest/download/ZenggeColorRemote.exe)**
 
-Новая локальная сборка Color Remote: `dist/ColorRemote/ZenggeColorRemote.exe`. Она включает современную HSV-палитру и крупную активную вкладку.
+Color Remote включает современную HSV-палитру и крупную активную вкладку.
 
-Установка Python не нужна. В ранее опубликованном релизе файл называется `ZenggeMusic.exe`: [Releases](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases).
+Установка Python не нужна. Скачайте и запустите `ZenggeColorRemote.exe` из [Releases](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases).
 
 ## Подключение ламп
 
@@ -67,4 +67,4 @@ py -3.12 -m venv .venv
 Автор исходного проекта перенёс дальнейшие исследования в [lednetwf_ble](https://github.com/8none1/lednetwf_ble). У моделей и прошивок команды могут отличаться. Адресное управление группами LED и встроенные эффекты в этой версии не реализованы.
 
 ## Color Remote
-Актуальная сборка после редизайна: `D:\AI\zengge\dist\ColorRemote\ZenggeColorRemote.exe`. Заголовок окна: «Zengge • Color Remote». Все функции версии с несколькими лампами и музыкой сохранены.
+Локальная сборка после редизайна: `dist/ColorRemote/ZenggeColorRemote.exe`. Заголовок окна: «Zengge • Color Remote». Все функции версии с несколькими лампами и музыкой сохранены.
