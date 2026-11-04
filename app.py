@@ -3,12 +3,14 @@ import queue
 import threading
 import time
 import tkinter as tk
-from tkinter import ttk, colorchooser
+from tkinter import ttk
+from color_picker import ask_color
 from bluetooth import Bluetooth
 from music import MusicCapture
 from lighting import dim, music_light, SmoothColor
 
-BG, FG, MUTED, PANEL = '#20242B', '#F4F6FA', '#BEC7D5', '#2B3039'
+BG, FG, MUTED, PANEL = '#1D2029', '#F4F6FA', '#BFC3D3', '#333541'
+ACCENT = '#FFD7C1'
 
 class App:
     def __init__(self, root):
@@ -30,28 +32,50 @@ class App:
         self.devices = []
         self.sources = [None]
         self.refreshing_sources = False
-        root.title('Zengge • Свет')
-        root.geometry('660x1000')
-        root.minsize(660, 960)
+        root.title('Zengge • Color Remote')
+        root.geometry('1040x800')
+        root.minsize(960, 760)
         root.configure(bg=BG)
         style = ttk.Style(root)
         style.theme_use('clam')
         style.configure('.', background=BG, foreground=FG, font=('Segoe UI', 10))
-        style.configure('TButton', padding=(12, 8), background=PANEL, foreground=FG)
-        style.map('TButton', background=[('active', '#3A4658'), ('disabled', '#252930')], foreground=[('disabled', '#87909E')])
+        style.configure('TButton', padding=(12, 10), background=PANEL, foreground=FG, borderwidth=0)
+        style.configure('Primary.TButton', background=ACCENT, foreground='#35231C', font=('Segoe UI', 11, 'bold'), padding=(14, 12))
+        style.map('Primary.TButton', background=[('disabled', '#383139'), ('pressed', '#EDBA9D'), ('active', '#FFE5D6')], foreground=[('disabled', '#A89CA3')])
+        style.configure('Remote.TNotebook', background=BG, borderwidth=0, bordercolor=BG, lightcolor=BG, darkcolor=BG)
+        style.layout('Remote.TNotebook.Tab', [])
+        style.configure('TScale', background=BG, troughcolor=PANEL)
+        style.configure('TProgressbar', background=ACCENT, troughcolor=PANEL, borderwidth=0)
+        style.configure('TCheckbutton', background=BG, foreground=FG)
+        style.map('TCheckbutton', background=[('active', BG)])
+        style.map('TButton', background=[('active', '#414452'), ('disabled', '#272A34')], foreground=[('disabled', '#9195A5')])
         style.configure('TCombobox', fieldbackground=PANEL, background=PANEL, foreground=FG, padding=6)
         style.map('TCombobox', fieldbackground=[('readonly', PANEL)], foreground=[('readonly', FG)])
         style.configure('TNotebook.Tab', padding=(16, 8))
-        style.map('TNotebook.Tab', background=[('selected', PANEL)], foreground=[('selected', FG)])
+        style.map('TNotebook.Tab', background=[('selected', PANEL), ('active', '#414452')], foreground=[('selected', ACCENT), ('!selected', MUTED)])
         style.configure('Treeview', background=PANEL, fieldbackground=PANEL, foreground=FG, rowheight=26)
-        style.configure('Treeview.Heading', background=BG, foreground=FG)
+        style.configure('Treeview.Heading', background=BG, foreground=MUTED, relief='flat')
+        style.map('Treeview', background=[('selected', '#575163')], foreground=[('selected', FG)])
         style.configure('TSpinbox', fieldbackground=PANEL, foreground=FG, arrowsize=16)
         root.option_add('*TCombobox*Listbox.background', PANEL)
         root.option_add('*TCombobox*Listbox.foreground', FG)
-        frame = ttk.Frame(root, padding=24)
-        frame.pack(fill='both', expand=True)
-        ttk.Label(frame, text='Управление светом', font=('Segoe UI', 20, 'bold')).pack(anchor='w')
-        ttk.Label(frame, text='Zengge / LEDnetWF · Bluetooth LE', foreground=MUTED).pack(anchor='w', pady=(2, 22))
+        shell = ttk.Frame(root, padding=24)
+        shell.pack(fill='both', expand=True)
+        header = ttk.Frame(shell)
+        header.pack(fill='x', pady=(0, 20))
+        ttk.Label(header, text='Zengge', font=('Segoe UI', 21, 'bold')).pack(side='left')
+        ttk.Label(header, text='Color Remote', foreground=MUTED).pack(side='right')
+        self.status = tk.StringVar(value='Включите Bluetooth и нажмите «Найти».')
+        status_label = tk.Label(shell, textvariable=self.status, bg=BG, fg=MUTED, font=('Segoe UI', 10), height=3, anchor='w', justify='left', wraplength=920)
+        status_label.pack(side='bottom', fill='x', pady=(16, 0))
+        body = ttk.Frame(shell)
+        body.pack(fill='both', expand=True)
+        frame = ttk.Frame(body, width=350)
+        frame.pack(side='left', fill='y', padx=(0, 28))
+        frame.pack_propagate(False)
+        right = ttk.Frame(body)
+        right.pack(side='left', fill='both', expand=True)
+        shell.bind('<Configure>', lambda e: status_label.configure(wraplength=max(300, e.width-48)))
         row = ttk.Frame(frame)
         row.pack(fill='x')
         ttk.Label(row, text='Лампы', font=('Segoe UI', 11, 'bold')).pack(side='left')
@@ -65,16 +89,16 @@ class App:
         self.connect_button = ttk.Button(row, text='Подключить', command=self.connect)
         self.connect_button.pack(side='left')
         self.disconnect_button = ttk.Button(row, text='Отключить выбранные', command=lambda: self.run('disconnect', list(self.connection_list.selection())))
-        self.disconnect_button.pack(side='left', padx=8)
-        self.connection_list = ttk.Treeview(frame, columns=('address',), height=2, selectmode='extended')
+        self.disconnect_button.pack(side='left', padx=(8, 0))
+        self.connection_list = ttk.Treeview(frame, columns=('address',), height=5, selectmode='extended')
         self.connection_list.heading('#0', text='Подключённые лампы')
         self.connection_list.heading('address', text='Адрес Bluetooth')
-        self.connection_list.column('#0', width=280)
-        self.connection_list.column('address', width=170)
+        self.connection_list.column('#0', width=155, minwidth=90)
+        self.connection_list.column('address', width=150, minwidth=100)
         self.connection_list.pack(fill='x', pady=(8, 0))
         self.connection_list.bind('<<TreeviewSelect>>', lambda _: self.controls())
         self.connection_summary = tk.StringVar(value='Нет подключений. Команды будут отправляться всем лампам.')
-        ttk.Label(frame, textvariable=self.connection_summary, foreground=MUTED).pack(anchor='w', pady=(4, 0))
+        ttk.Label(frame, textvariable=self.connection_summary, foreground=MUTED, wraplength=330).pack(anchor='w', pady=(8, 0))
         row = ttk.Frame(frame)
         row.pack(fill='x', pady=(16, 8))
         ttk.Label(row, text='Яркость').pack(side='left')
@@ -86,25 +110,34 @@ class App:
         row = ttk.Frame(frame)
         row.pack(fill='x', pady=(0, 16))
         self.on_button = ttk.Button(row, text='Включить', command=lambda: self.run('power', True))
-        self.on_button.pack(side='left', padx=8)
+        self.on_button.pack(side='left', fill='x', expand=True, padx=(0, 6))
         self.off_button = ttk.Button(row, text='Выключить', command=lambda: self.run('power', False))
-        self.off_button.pack(side='left')
-        self.tabs = ttk.Notebook(frame)
+        self.off_button.pack(side='left', fill='x', expand=True, padx=(6, 0))
+        tab_bar = ttk.Frame(right)
+        tab_bar.pack(fill='x', pady=(0, 10))
+        self.tab_buttons = []
+        for index, title in enumerate(('Цвет', 'Музыка')):
+            button = tk.Button(tab_bar, text=title, command=lambda i=index: self.tabs.select(i), relief='flat', borderwidth=0, cursor='hand2', takefocus=True, highlightthickness=1, highlightbackground=BG, highlightcolor=ACCENT)
+            button.pack(side='left', anchor='s', padx=(0, 10))
+            self.tab_buttons.append(button)
+        self.tabs = ttk.Notebook(right, style='Remote.TNotebook')
         self.tabs.pack(fill='both', expand=True, pady=(0, 12))
         color_frame = ttk.Frame(self.tabs, padding=12)
         music_frame = ttk.Frame(self.tabs, padding=12)
         self.tabs.add(color_frame, text='Цвет')
         self.tabs.add(music_frame, text='Музыка')
-        row = ttk.Frame(color_frame)
-        row.pack(fill='x')
-        ttk.Label(row, text='Цвет подсветки', font=('Segoe UI', 11, 'bold')).pack(side='left')
-        ttk.Button(row, text='Палитра…', command=self.pick).pack(side='right')
-        self.preview = tk.Canvas(color_frame, height=64, bg='#FF8040', highlightthickness=0)
-        self.preview.pack(fill='x', pady=(12, 12))
+        self.tabs.bind('<<NotebookTabChanged>>', self.update_tabs)
+        self.tabs.enable_traversal()
+        self.update_tabs()
+        self.selected_color = '#FF8040'
+        self.preview = tk.Canvas(color_frame, height=200, bg=BG, highlightthickness=0)
+        self.preview.pack(fill='both', expand=True, pady=(8, 8))
+        self.preview.bind('<Configure>', self.draw_preview)
+        ttk.Button(color_frame, text='Палитра…', command=self.pick).pack(pady=(0, 18))
         self.rgb = [tk.StringVar(value=str(v)) for v in (255, 128, 64)]
         row = ttk.Frame(color_frame)
         row.pack(fill='x')
-        for i, label in enumerate(('R · Красный', 'G · Зелёный', 'B · Синий')):
+        for i, label in enumerate(('R', 'G', 'B')):
             col = ttk.Frame(row)
             col.pack(side='left', fill='x', expand=True, padx=(0, 8) if i < 2 else 0)
             ttk.Label(col, text=label, foreground=MUTED).pack(anchor='w')
@@ -113,12 +146,13 @@ class App:
             self.rgb[i].trace_add('write', self.update_preview)
         row = ttk.Frame(color_frame)
         row.pack(fill='x', pady=16)
-        self.apply_button = ttk.Button(row, text='Применить цвет', command=self.apply)
-        self.apply_button.pack(side='left')
+        self.apply_button = ttk.Button(row, text='Применить цвет', style='Primary.TButton', command=self.apply)
+        self.apply_button.pack(fill='x', expand=True)
+        ttk.Label(color_frame, text='Предпросмотр цвета, а не подтверждённое состояние ламп.', foreground=MUTED, wraplength=440, anchor='center', justify='center').pack(fill='x', pady=(0, 8))
         row = ttk.Frame(music_frame)
         row.pack(fill='x')
         ttk.Label(row, text='В такт музыке', font=('Segoe UI', 11, 'bold')).pack(side='left')
-        self.music_button = ttk.Button(row, text='Запустить', command=self.toggle_music)
+        self.music_button = ttk.Button(row, text='Запустить', style='Primary.TButton', command=self.toggle_music)
         self.music_button.pack(side='right')
         row = ttk.Frame(music_frame)
         row.pack(fill='x', pady=(10, 0))
@@ -128,7 +162,9 @@ class App:
         self.refresh_button = ttk.Button(row, text='Обновить', command=self.refresh_sources)
         self.refresh_button.pack(side='right', padx=(8, 0))
         self.audio_status = tk.StringVar(value='Звук с выхода Windows по умолчанию')
-        ttk.Label(music_frame, textvariable=self.audio_status, foreground=MUTED, wraplength=500).pack(anchor='w', pady=(4, 6))
+        audio_label = ttk.Label(music_frame, textvariable=self.audio_status, foreground=MUTED, wraplength=440)
+        audio_label.pack(fill='x', pady=(4, 6))
+        music_frame.bind('<Configure>', lambda e: audio_label.configure(wraplength=max(240, e.width-24)))
         row = ttk.Frame(music_frame)
         row.pack(fill='x')
         ttk.Label(row, text='Чувствительность').pack(side='left')
@@ -155,13 +191,45 @@ class App:
         ttk.Label(music_frame, text='Звуковая волна' , foreground=MUTED).pack(anchor='w')
         self.waveform = tk.Canvas(music_frame, height=100, background=PANEL, highlightthickness=0)
         self.waveform.pack(fill='x', pady=(6, 0))
-        self.wave_line = self.waveform.create_line(0, 50, 500, 50, fill='#88B9FF', width=2)
-        self.status = tk.StringVar(value='Включите Bluetooth и нажмите «Найти».')
-        ttk.Label(frame, textvariable=self.status, foreground=MUTED, wraplength=460).pack(anchor='w', pady=(4, 0))
+        self.wave_line = self.waveform.create_line(0, 50, 500, 50, fill=ACCENT, width=2)
         self.controls()
         self.refresh_sources()
         root.protocol('WM_DELETE_WINDOW', self.close)
         root.after(50, self.poll)
+
+    def update_tabs(self, *_):
+        selected = self.tabs.index('current')
+        for index, button in enumerate(self.tab_buttons):
+            active = index == selected
+            button.configure(
+                font=('Segoe UI', 12 if active else 10, 'bold' if active else 'normal'),
+                padx=22 if active else 14, pady=12 if active else 6,
+                bg=ACCENT if active else PANEL, fg='#35231C' if active else MUTED,
+                activebackground='#FFE5D6' if active else '#414452',
+                activeforeground='#35231C' if active else FG)
+
+    def set_preview(self, rgb):
+        color = '#%02X%02X%02X' % rgb
+        if color != self.selected_color:
+            self.selected_color = color
+            self.draw_preview()
+
+    def draw_preview(self, *_):
+        w, h = self.preview.winfo_width(), self.preview.winfo_height()
+        diameter = min(270, w-24, h-16)
+        if diameter < 40:
+            return
+        x, y = w/2, h/2
+        self.preview.delete('all')
+        self.preview.create_oval(x-diameter/2, y-diameter/2, x+diameter/2, y+diameter/2, fill=self.selected_color, outline='')
+        rgb = tuple(int(self.selected_color[i:i+2], 16) for i in (1, 3, 5))
+        def linear(v):
+            v /= 255
+            return v/12.92 if v <= .04045 else ((v+.055)/1.055)**2.4
+        luminance = sum(weight*linear(v) for weight,v in zip((.2126,.7152,.0722),rgb))
+        ink = '#000000' if luminance > .179 else '#FFFFFF'
+        self.preview.create_text(x,y-16,text='Музыка' if self.music_active else 'Выбранный цвет',fill=ink,font=('Segoe UI',10))
+        self.preview.create_text(x,y+16,text=self.selected_color,fill=ink,font=('Segoe UI',20,'bold'))
 
     def change_brightness(self, value):
         self.brightness_text.set(f'{round(float(value))}%')
@@ -260,12 +328,16 @@ class App:
 
     def update_preview(self, *_):
         try:
-            self.preview.configure(bg='#%02x%02x%02x' % dim(self.values(), self.brightness.get()))
+            self.set_preview(dim(self.values(), self.brightness.get()))
         except ValueError:
             pass
 
     def pick(self):
-        color = colorchooser.askcolor(self.preview.cget('bg'), parent=self.root, title='Цвет подсветки')[0]
+        try:
+            initial = self.values()
+        except ValueError:
+            initial = (255, 128, 64)
+        color = ask_color(self.root, initial)
         if color:
             for variable, value in zip(self.rgb, color):
                 variable.set(str(round(value)))
@@ -346,7 +418,7 @@ class App:
             # Silence holds the last audible color and intensity in both modes.
             rgb, self.music_hue = music_light(self.music_last_input, self.brightness.get(), self.reactive_brightness.get(), self.music_hue, self.pulse_strength.get())
             rgb = self.transition.update(rgb, time.monotonic(), self.smoothness.get())
-            self.preview.configure(bg='#%02x%02x%02x' % rgb)
+            self.set_preview(rgb)
             if available and not self.busy and rgb != self.last_music_rgb:
                 self.last_music_rgb = rgb
                 self.music_future = self.ble.submit('music_color', rgb)
