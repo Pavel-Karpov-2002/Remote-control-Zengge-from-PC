@@ -15,6 +15,7 @@ spacing:
   columns: 28px
 ---
 # Zengge Color Remote
+Язык / Language: **Русский** · [English](DESIGN.en.md) · [中文](DESIGN.zh.md) · [Deutsch](DESIGN.de.md) · [Polski](DESIGN.pl.md)
 ## Overview
 Русский Windows-пульт, режим Operate. Сохранены несколько BLE-соединений, общая яркость, питание, RGB, реакция на частоты, Fade и синхронизация со средним цветом экранов.
 ## Colors

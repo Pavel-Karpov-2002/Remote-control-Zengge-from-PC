@@ -1,10 +1,12 @@
 # Zengge для Windows
 
+Язык / Language: **Русский** · [English](README.en.md) · [中文](README.zh.md) · [Deutsch](README.de.md) · [Polski](README.pl.md)
+
 Управление LEDnetWF через Bluetooth LE: несколько ламп, RGB-палитра, яркость, цветомузыка по частотному спектру, плавная смена цветов Fade и подстройка под средний цвет экрана.
 
 **[Скачать последнюю версию для Windows x64](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases/latest/download/ZenggeColorRemote.exe)**
 
-Версия 0.4.0. Интерфейс содержит отдельные вкладки «Цвет», «Музыка», «Fade» и «Экран».
+Версия 0.4.0. Интерфейс содержит отдельные вкладки «Цвет», «Музыка», «Fade» и «Экран». Приложение поддерживает русский, английский, китайский (упрощённый), немецкий и польский. При первом запуске используется язык отображения Windows; язык можно переключить в приложении, выбор сохраняется.
 
 Установка Python не нужна. Скачайте и запустите `ZenggeColorRemote.exe` из [Releases](https://github.com/Pavel-Karpov-2002/Remote-control-Zengge-from-PC/releases).
 

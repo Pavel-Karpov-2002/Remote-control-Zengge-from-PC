@@ -2,23 +2,25 @@
 import colorsys
 import tkinter as tk
 from tkinter import ttk
+from i18n import translate
 
 BG, PANEL, FG, MUTED = '#1D2029', '#333541', '#F4F6FA', '#BFC3D3'
 
-def parse_hex(value):
+def parse_hex(value, language='ru'):
     value = value.strip().lstrip('#')
     if len(value) != 6:
-        raise ValueError('Введите HEX из 6 символов, например FF8040.')
+        raise ValueError(translate('Введите HEX из 6 символов, например FF8040.', language))
     try:
         return tuple(int(value[i:i+2], 16) for i in (0, 2, 4))
     except ValueError:
-        raise ValueError('Введите HEX из 6 символов, например FF8040.') from None
+        raise ValueError(translate('Введите HEX из 6 символов, например FF8040.', language)) from None
 
 class ColorPicker(tk.Toplevel):
-    def __init__(self, parent, initial):
+    def __init__(self, parent, initial, language='ru'):
         super().__init__(parent)
+        self.language = language
         self.withdraw()
-        self.title('Выбрать цвет')
+        self.title(translate('Выбрать цвет', language))
         self.configure(bg=BG)
         self.resizable(False, False)
         self.transient(parent)
@@ -31,7 +33,7 @@ class ColorPicker(tk.Toplevel):
         self.error = tk.StringVar()
         frame = ttk.Frame(self, padding=24)
         frame.pack(fill='both', expand=True)
-        ttk.Label(frame, text='Выбрать цвет', font=('Segoe UI', 18, 'bold')).pack(anchor='w', pady=(0, 16))
+        ttk.Label(frame, text=translate('Выбрать цвет', language), font=('Segoe UI', 18, 'bold')).pack(anchor='w', pady=(0, 16))
         self.field = tk.Canvas(frame, width=360, height=210, highlightthickness=0, cursor='crosshair', takefocus=True)
         self.field.pack()
         self.field.bind('<Button-1>', self.select_sv)
@@ -51,7 +53,7 @@ class ColorPicker(tk.Toplevel):
         self.hue.create_image(0, 0, image=self.hue_image, anchor='nw')
         swatches = ttk.Frame(frame)
         swatches.pack(fill='x')
-        for label, color in (('Текущий', self.original), ('Новый', self.original)):
+        for label, color in ((translate('Текущий', language), self.original), (translate('Новый', language), self.original)):
             col=ttk.Frame(swatches); col.pack(side='left', fill='x', expand=True)
             ttk.Label(col, text=label, foreground=MUTED).pack(anchor='w', pady=(0, 5))
             swatch=tk.Canvas(col, width=172, height=34, bg=color, highlightthickness=0)
@@ -67,8 +69,8 @@ class ColorPicker(tk.Toplevel):
             entry.bind('<Return>', lambda e, hex_input=i==0: self.read_input(hex_input))
         ttk.Label(frame,textvariable=self.error,foreground='#FFB4AB',wraplength=360).pack(fill='x',pady=(8,8))
         actions=ttk.Frame(frame);actions.pack(fill='x')
-        ttk.Button(actions,text='Отмена',command=self.destroy).pack(side='left')
-        ttk.Button(actions,text='Выбрать цвет',style='Primary.TButton',command=self.confirm).pack(side='right')
+        ttk.Button(actions,text=translate('Отмена', language),command=self.destroy).pack(side='left')
+        ttk.Button(actions,text=translate('Выбрать цвет', language),style='Primary.TButton',command=self.confirm).pack(side='right')
         self.bind('<Escape>',lambda e:self.destroy())
         self.protocol('WM_DELETE_WINDOW',self.destroy)
         self.refresh()
@@ -120,21 +122,21 @@ class ColorPicker(tk.Toplevel):
 
     def read_input(self,hex_input):
         try:
-            rgb=parse_hex(self.hex.get()) if hex_input else tuple(int(v.get()) for v in self.channels)
-            if any(not 0<=v<=255 for v in rgb): raise ValueError('Введите R, G и B от 0 до 255.')
+            rgb=parse_hex(self.hex.get(), self.language) if hex_input else tuple(int(v.get()) for v in self.channels)
+            if any(not 0<=v<=255 for v in rgb): raise ValueError(translate('Введите R, G и B от 0 до 255.', self.language))
             h,s,v=colorsys.rgb_to_hsv(*(c/255 for c in rgb))
             if s: self.h=h
             self.s,self.v=s,v;self.refresh()
             return True
         except ValueError as exc:
-            self.error.set(str(exc) if hex_input else 'Введите R, G и B от 0 до 255.')
+            self.error.set(str(exc) if hex_input else translate('Введите R, G и B от 0 до 255.', self.language))
             return False
 
     def confirm(self):
         if self.error.get(): return
         self.result=self.rgb();self.destroy()
 
-def ask_color(parent, initial):
-    picker=ColorPicker(parent,initial)
+def ask_color(parent, initial, language='ru'):
+    picker=ColorPicker(parent,initial,language)
     parent.wait_window(picker)
     return picker.result

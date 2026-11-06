@@ -13,6 +13,7 @@ from color_picker import ask_color
 from bluetooth import Bluetooth
 from music import MusicCapture, DEFAULT_COLOR_MAP
 from lighting import dim, music_light, SmoothColor
+from i18n import LANGUAGE_NAMES, detect_system_language, translate as tr
 
 BG, FG, MUTED, PANEL = '#1D2029', '#F4F6FA', '#BFC3D3', '#333541'
 ACCENT = '#FFD7C1'
@@ -34,6 +35,9 @@ class App:
             self.saved_settings = {}
         if not isinstance(self.saved_settings, dict):
             self.saved_settings = {}
+        self.language_code = self.saved_settings.get('language') or detect_system_language()
+        if self.language_code not in LANGUAGE_NAMES:
+            self.language_code = detect_system_language()
         try:
             self.color_map = [(int(point[0]), tuple(int(channel) for channel in point[1]))
                               for point in self.saved_settings.get('color_map', DEFAULT_COLOR_MAP)]
@@ -129,6 +133,11 @@ class App:
         header.pack(fill='x', pady=(0, 20))
         ttk.Label(header, text='Zengge', font=('Segoe UI', 21, 'bold')).pack(side='left')
         ttk.Label(header, text='Color Remote', foreground=MUTED).pack(side='right')
+        self.language_box = ttk.Combobox(header, state='readonly', width=12,
+                                         values=tuple(LANGUAGE_NAMES.values()))
+        self.language_box.pack(side='right', padx=(0, 14))
+        self.language_box.set(LANGUAGE_NAMES[self.language_code])
+        self.language_box.bind('<<ComboboxSelected>>', self.select_language)
         self.status = tk.StringVar(value='Включите Bluetooth и нажмите «Найти».')
         status_label = tk.Label(shell, textvariable=self.status, bg=BG, fg=MUTED, font=('Segoe UI', 10), height=3, anchor='w', justify='left', wraplength=920)
         status_label.pack(side='bottom', fill='x', pady=(16, 0))
@@ -178,7 +187,9 @@ class App:
         self.off_button = ttk.Button(row, text='Выключить', command=lambda: self.run('power', False))
         self.off_button.pack(side='left', fill='x', expand=True, padx=(6, 0))
         tab_bar = ttk.Frame(right)
+        self.tab_bar = tab_bar
         tab_bar.pack(fill='x', pady=(0, 10))
+        self.tab_keys = ('Цвет', 'Музыка', 'Fade', 'Экран')
         self.tab_buttons = []
         for index, title in enumerate(('Цвет', 'Музыка', 'Fade', 'Экран')):
             button = tk.Button(tab_bar, text=title, command=lambda i=index: self.tabs.select(i), relief='flat', borderwidth=0, cursor='hand2', takefocus=True, highlightthickness=1, highlightbackground=BG, highlightcolor=ACCENT)
@@ -190,6 +201,7 @@ class App:
         music_frame = ttk.Frame(self.tabs, padding=12)
         self.fade_controls = ttk.Frame(self.tabs, padding=12)
         self.screen_controls = ttk.Frame(self.tabs, padding=12)
+        self.tab_keys = ('Цвет', 'Музыка', 'Fade', 'Экран')
         self.tabs.add(color_frame, text='Цвет')
         self.tabs.add(music_frame, text='Музыка')
         self.tabs.add(self.fade_controls, text='Fade')
@@ -426,6 +438,8 @@ class App:
                         self.music_min_brightness):
             setting.trace_add('write', self.schedule_save_settings)
         self.bind_scale_wheels(root)
+        self.bind_localized_variables()
+        self.apply_language()
         root.after(50, self.poll)
         if self.remembered_devices:
             root.after(800, self.scan)
@@ -448,6 +462,75 @@ class App:
                 self.stop_music(restore=True)
         else:
             self.set_effect_mode(mode)
+
+    def select_language(self, _event=None):
+        selected = self.language_box.get()
+        self.language_code = next((code for code, label in LANGUAGE_NAMES.items() if label == selected), 'en')
+        self.apply_language()
+        self.schedule_save_settings()
+
+    def bind_localized_variables(self):
+        names = ('status', 'connection_summary', 'brightness_text', 'audio_status',
+                 'music_min_brightness_text', 'pulse_text', 'music_fade_speed_text',
+                 'threshold_text', 'pitch_readout', 'gradient_hint', 'fade_gradient_hint',
+                 'fade_brightness_text', 'screen_brightness_text')
+        self.localized_variables = []
+        for name in names:
+            variable = getattr(self, name, None)
+            if not isinstance(variable, tk.StringVar):
+                continue
+            self.localized_variables.append(variable)
+            original_set = variable.set
+            variable.set = lambda value, setter=original_set: setter(tr(str(value), self.language_code))
+
+    def apply_language(self):
+        code = self.language_code
+        self.root.title(f'Zengge • Color Remote v{APP_VERSION}')
+        self.language_box.set(LANGUAGE_NAMES[code])
+        def visit(parent):
+            for widget in parent.winfo_children():
+                try:
+                    text = widget.cget('text')
+                    if text and widget is not self.language_box:
+                        widget.configure(text=tr(str(text), code))
+                except (tk.TclError, TypeError):
+                    pass
+                try:
+                    values = widget.cget('values')
+                    if values and widget is self.source_box:
+                        widget.configure(values=tuple(tr(str(value), code) for value in values))
+                except (tk.TclError, TypeError):
+                    pass
+                try:
+                    variable_name = widget.cget('textvariable')
+                    if variable_name and any(str(variable) == str(variable_name) for variable in self.localized_variables):
+                        current = self.root.getvar(variable_name)
+                        updated = tr(str(current), code)
+                        if updated != current:
+                            self.root.setvar(variable_name, updated)
+                except (tk.TclError, TypeError):
+                    pass
+                if widget is self.tabs:
+                    for index, key in enumerate(self.tab_keys):
+                        widget.tab(index, text=tr(key, code))
+                if widget is self.tab_bar:
+                    for button, key in zip(self.tab_buttons, self.tab_keys):
+                        button.configure(text=tr(key, code))
+                if isinstance(widget, ttk.Treeview):
+                    for column, key in (('#0', 'Подключённые лампы'), ('address', 'Адрес Bluetooth')):
+                        widget.heading(column, text=tr(key, code))
+                visit(widget)
+        visit(self.root)
+        if hasattr(self, 'sources') and hasattr(self, 'source_box'):
+            selected = max(0, self.source_box.current())
+            labels = [tr('Весь системный звук', code)] + [source.label for source in self.sources[1:]]
+            self.source_box.configure(values=labels)
+            self.source_box.current(min(selected, len(labels) - 1))
+        self.draw_gradient()
+        self.draw_fade_gradient()
+        self.draw_spectrum()
+        self.draw_preview()
+        self.update_tabs()
 
     def set_effect_mode(self, mode):
         if mode == self.effect_mode:
@@ -477,7 +560,8 @@ class App:
             return v/12.92 if v <= .04045 else ((v+.055)/1.055)**2.4
         luminance = sum(weight*linear(v) for weight,v in zip((.2126,.7152,.0722),rgb))
         ink = '#000000' if luminance > .179 else '#FFFFFF'
-        title = {'music': 'Музыка', 'fade': 'Fade', 'screen': 'Экран'}.get(self.effect_mode, 'Выбранный цвет') if self.effect_active else 'Выбранный цвет'
+        title = {'music': 'Музыка', 'fade': 'Режим Fade', 'screen': 'Экран'}.get(self.effect_mode, 'Выбранный цвет') if self.effect_active else 'Выбранный цвет'
+        title = tr(title, self.language_code)
         self.preview.create_text(x,y-16,text=title,fill=ink,font=('Segoe UI',10))
         self.preview.create_text(x,y+16,text=self.selected_color,fill=ink,font=('Segoe UI',20,'bold'))
 
@@ -588,7 +672,7 @@ class App:
             x = self.gradient_x(frequency)
             color = '#%02X%02X%02X' % rgb
             canvas.create_oval(x - 5, 5, x + 5, 15, fill=color, outline=ACCENT if index == getattr(self, 'selected_gradient', -1) else FG)
-            canvas.create_text(x, height - 6, text=f'{frequency} Гц', fill=FG, font=('Segoe UI', 8))
+            canvas.create_text(x, height - 6, text=tr(f'{frequency} Гц', self.language_code), fill=FG, font=('Segoe UI', 8))
 
     def add_gradient_point(self, event):
         frequency = self.gradient_frequency(event.x)
@@ -596,7 +680,7 @@ class App:
         if abs(self.gradient_x(self.color_map[nearest][0]) - event.x) < 10:
             frequency = self.color_map[nearest][0]
         initial = self.color_map[nearest][1]
-        color = ask_color(self.root, initial)
+        color = ask_color(self.root, initial, self.language_code)
         if color:
             self.color_map = [point for point in self.color_map if point[0] != frequency]
             self.color_map.append((frequency, tuple(round(channel) for channel in color)))
@@ -604,7 +688,7 @@ class App:
             self.selected_gradient = next(i for i, point in enumerate(self.color_map) if point[0] == frequency)
             self.music.color_map = tuple(self.color_map)
             self.schedule_save_settings()
-            self.gradient_hint.set(f'Точка {frequency} Гц · двойной щелчок меняет цвет · Delete удаляет точку')
+            self.gradient_hint.set(tr(f'Точка {frequency} Гц · двойной щелчок меняет цвет · Delete удаляет точку', self.language_code))
             self.draw_gradient()
         return 'break'
 
@@ -632,7 +716,7 @@ class App:
         self.drag_gradient_index = self.selected_gradient
         self.music.color_map = tuple(self.color_map)
         self.schedule_save_settings()
-        self.gradient_hint.set(f'Точка {frequency} Гц · перетаскивайте ЛКМ, удаляйте ПКМ')
+        self.gradient_hint.set(tr(f'Точка {frequency} Гц · перетаскивайте ЛКМ, удаляйте ПКМ', self.language_code))
         self.draw_gradient()
 
     def delete_gradient_point(self, _event=None):
@@ -645,7 +729,7 @@ class App:
             self.selected_gradient = -1
             self.music.color_map = tuple(self.color_map)
             self.schedule_save_settings()
-            self.gradient_hint.set('Точка удалена · ПКМ удаляет, ЛКМ перетаскивает')
+            self.gradient_hint.set(tr('Точка удалена · ПКМ удаляет, ЛКМ перетаскивает', self.language_code))
             self.draw_gradient()
         return 'break'
 
@@ -686,10 +770,10 @@ class App:
                 x = pad + position * (width - 2 * pad)
                 canvas.create_line(x, top, x, bottom, fill=ACCENT, width=2)
         else:
-            canvas.create_text(width / 2, height / 2, text='Ожидание аудиосигнала', fill=MUTED,
+            canvas.create_text(width / 2, height / 2, text=tr('Ожидание аудиосигнала', self.language_code), fill=MUTED,
                                font=('Segoe UI', 10))
-        canvas.create_text(pad, height - 6, text='35 Гц', fill=MUTED, anchor='w', font=('Segoe UI', 8))
-        canvas.create_text(width - pad, height - 6, text='12 кГц', fill=MUTED, anchor='e', font=('Segoe UI', 8))
+        canvas.create_text(pad, height - 6, text=tr('35 Гц', self.language_code), fill=MUTED, anchor='w', font=('Segoe UI', 8))
+        canvas.create_text(width - pad, height - 6, text=tr('12 кГц', self.language_code), fill=MUTED, anchor='e', font=('Segoe UI', 8))
 
     def refresh_sources(self):
         if self.refreshing_sources or self.effect_active:
@@ -768,6 +852,7 @@ class App:
             'fade_color_map': self.fade_color_map,
             'fade_profiles': self.fade_profiles,
             'screen_brightness': self.screen_brightness.get(),
+            'language': self.language_code,
             'spectrum_profiles': self.spectrum_profiles,
         }
         try:
@@ -787,7 +872,8 @@ class App:
             self.profile_name.set(names[0] if names else '')
 
     def save_spectrum_profile(self):
-        name = simpledialog.askstring('Сохранить профиль спектра', 'Название профиля:', parent=self.root)
+        name = simpledialog.askstring(tr('Сохранить профиль спектра', self.language_code),
+                                      tr('Название профиля:', self.language_code), parent=self.root)
         if not name or not name.strip():
             return
         name = name.strip()
@@ -900,7 +986,7 @@ class App:
                       key=lambda i: abs(self.fade_gradient_x(self.fade_color_map[i][0]) - event.x))
         if abs(self.fade_gradient_x(self.fade_color_map[nearest][0]) - event.x) < 10:
             position = self.fade_color_map[nearest][0]
-        color = ask_color(self.root, self.fade_color_map[nearest][1])
+        color = ask_color(self.root, self.fade_color_map[nearest][1], self.language_code)
         if color:
             self.fade_color_map = [point for point in self.fade_color_map if point[0] != position]
             self.fade_color_map.append((position, tuple(round(channel) for channel in color)))
@@ -965,7 +1051,8 @@ class App:
             self.fade_profile_name.set(names[0] if names else '')
 
     def save_fade_profile(self):
-        name = simpledialog.askstring('Сохранить профиль Fade', 'Название профиля:', parent=self.root)
+        name = simpledialog.askstring(tr('Сохранить профиль Fade', self.language_code),
+                                      tr('Название профиля:', self.language_code), parent=self.root)
         if not name or not name.strip():
             return
         name = name.strip()
@@ -1060,9 +1147,9 @@ class App:
         self.apply_button.configure(state='normal' if self.connected and not self.busy and not self.effect_active else 'disabled')
         start_state = 'normal' if self.effect_active or (self.connected and not self.busy and not self.music.running) else 'disabled'
         start_text = 'Остановить' if self.effect_active else 'Запустить'
-        self.music_button.configure(text=start_text, state=start_state)
-        self.fade_button.configure(text=start_text, state=start_state)
-        self.screen_button.configure(text=start_text, state=start_state)
+        self.music_button.configure(text=tr(start_text, self.language_code), state=start_state)
+        self.fade_button.configure(text=tr(start_text, self.language_code), state=start_state)
+        self.screen_button.configure(text=tr(start_text, self.language_code), state=start_state)
         selecting = self.effect_mode == 'music' and not self.effect_active and not self.music.running
         self.source_box.configure(state='readonly' if selecting and not self.refreshing_sources else 'disabled')
         self.refresh_button.configure(state='normal' if selecting and not self.refreshing_sources else 'disabled')
@@ -1131,7 +1218,7 @@ class App:
             initial = self.values()
         except ValueError:
             initial = (255, 128, 64)
-        color = ask_color(self.root, initial)
+        color = ask_color(self.root, initial, self.language_code)
         if color:
             for variable, value in zip(self.rgb, color):
                 variable.set(str(round(value)))
@@ -1221,7 +1308,7 @@ class App:
                 if kind == 'sources':
                     selected = self.sources[max(0, self.source_box.current())]
                     self.sources = [None] + text
-                    self.source_box['values'] = ['Весь системный звук'] + [s.label for s in text]
+                    self.source_box['values'] = [tr('Весь системный звук', self.language_code)] + [s.label for s in text]
                     identity = lambda source: (source.pid, source.created) if source else None
                     index = next((i for i, source in enumerate(self.sources) if identity(source) == identity(selected)), 0)
                     self.source_box.current(index)
@@ -1260,9 +1347,9 @@ class App:
                 rgb, level = self.music.latest
                 self.level['value'] = level
                 if self.music.frequency:
-                    self.pitch_readout.set(f'{self.music.frequency} Гц  ·  активен')
+                    self.pitch_readout.set(tr(f'{self.music.frequency} Гц  ·  активен', self.language_code))
                 else:
-                    self.pitch_readout.set('Низкие ноты → красный     Высокие → белый')
+                    self.pitch_readout.set(tr('Низкие ноты → красный     Высокие → белый', self.language_code))
                 if self.music.audible:
                     self.music_last_input = rgb
                 # Silence holds the last detected pitch color and brightness.
