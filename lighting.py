@@ -13,9 +13,9 @@ def music_light(rgb, percent, reactive=True, previous_hue=0.02, strength=100):
     if reactive:
         depth = min(100, max(0, strength)) / 100
         value = 1 - depth * (1 - value)
-        adjusted = tuple(round(v * 255) for v in colorsys.hsv_to_rgb(previous_hue, 1, value))
+        adjusted = tuple(round(v * 255) for v in colorsys.hsv_to_rgb(hue, saturation, value))
         return dim(adjusted, percent), previous_hue
-    full = tuple(round(v * 255) for v in colorsys.hsv_to_rgb(previous_hue, 1, 1))
+    full = tuple(round(v * 255) for v in colorsys.hsv_to_rgb(hue, saturation, 1))
     return dim(full, percent), previous_hue
 
 

@@ -43,11 +43,12 @@ def window_processes():
     return windows
 
 
-def mixer_sources():
+def mixer_sources(active_only=False):
     import os
     import comtypes
     import psutil
     from pycaw.pycaw import AudioUtilities
+    from pycaw.constants import AudioSessionState
     from pycaw.api.audiopolicy import IAudioSessionControl2
     from pycaw.utils import AudioSession
     found = {}
@@ -67,11 +68,12 @@ def mixer_sources():
         except (psutil.Error, AttributeError):
             pass
     # Enumerate windows first: sessions alone omit apps that have never played audio.
-    for pid, title in window_processes():
-        try:
-            add(psutil.Process(pid), title)
-        except psutil.Error:
-            pass
+    if not active_only:
+        for pid, title in window_processes():
+            try:
+                add(psutil.Process(pid), title)
+            except psutil.Error:
+                pass
     comtypes.CoInitialize()
     try:
         # Every active output, including inactive sessions; not just the default output.
@@ -80,7 +82,10 @@ def mixer_sources():
                 enumerator = device.AudioSessionManager.GetSessionEnumerator()
                 for i in range(enumerator.GetCount()):
                     control = enumerator.GetSession(i).QueryInterface(IAudioSessionControl2)
-                    process = AudioSession(control).Process
+                    session = AudioSession(control)
+                    if active_only and session.State != AudioSessionState.Active:
+                        continue
+                    process = session.Process
                     if process is not None:
                         add(process)
             except (comtypes.COMError, OSError):
